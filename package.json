@@ -1,0 +1,45 @@
+{
+  "name": "vidverse",
+  "version": "0.1.1",
+  "private": true,
+  "type": "module",
+  "description": "A video platform in plain JavaScript: upload, adaptive streaming, channels, comments, tips and payouts for creators, AdSense slots for the owner, a help assistant, and a security-first core.",
+  "engines": {
+    "node": ">=22.12"
+  },
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "demo": "node scripts/demo.js",
+    "worker": "node src/worker.js",
+    "migrate": "node scripts/migrate.js",
+    "make-admin": "node scripts/make-admin.js",
+    "mail-test": "node scripts/mail-test.js",
+    "economics": "node scripts/economics.js",
+    "lint": "eslint .",
+    "test": "node --test --test-concurrency=1 --test-timeout=120000 \"tests/**/*.test.js\"",
+    "test:postgres": "node scripts/test-postgres.js",
+    "break-it": "node scripts/break-it.js",
+    "e2e": "playwright test",
+    "check": "npm run lint && npm test"
+  },
+  "dependencies": {
+    "@fontsource-variable/jetbrains-mono": "^5.3.0",
+    "@fontsource-variable/schibsted-grotesk": "^5.3.0",
+    "express": "^5.3.0",
+    "hls.js": "^1.7.4",
+    "marked": "^18.1.3",
+    "nodemailer": "^10.3.1",
+    "pg": "^8.23.1",
+    "qrcode-generator": "2.0.4",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "^4.14.0",
+    "@electric-sql/pglite": "^0.5.15",
+    "@eslint/js": "^9.39.5",
+    "@playwright/test": "1.63.0",
+    "eslint": "^9.39.5",
+    "globals": "^16.5.0"
+  }
+}
