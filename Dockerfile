@@ -16,7 +16,7 @@ COPY public ./public
 COPY content ./content
 COPY scripts ./scripts
 
-# Run as an ordinary user. /data is where uploaded and processed videos are kept: mount a volume there.
+
 RUN mkdir -p /data && chown -R node:node /data /app
 USER node
 VOLUME ["/data"]
