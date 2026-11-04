@@ -181,6 +181,9 @@ export function loadConfig(env = process.env, overrides = {}) {
       profile: r.oneOf('TRANSCODE_PROFILE', ['fast', 'standard'], isTest ? 'fast' : 'standard'),
     },
     worker: r.oneOf('WORKER', ['inprocess', 'separate', 'off'], 'inprocess'),
+    // closed = a site for watching only: nobody can create an account (and, without real email, reset a password).
+    // For running in production before email is set up; people can watch, and sign-ups open when SMTP_URL is set.
+    signupsOpen: r.oneOf('SIGNUPS', ['open', 'closed'], 'open') === 'open',
     legal: {
       operatorName: r.str('OPERATOR_NAME'),
       operatorAddress: r.str('OPERATOR_ADDRESS'),
@@ -192,6 +195,11 @@ export function loadConfig(env = process.env, overrides = {}) {
       allowUnreviewed: r.bool('ALLOW_UNREVIEWED_LEGAL', false),
     },
     limits: { enabled: r.bool('RATE_LIMITS', true) },
+    catalog: {
+      // Imports public-domain video (NASA, Internet Archive) that plays from the archive's own servers. Off unless asked for.
+      enabled: r.bool('CATALOG_IMPORT', false),
+      maxVideos: r.int('CATALOG_MAX_VIDEOS', 800, { min: 0, max: 20000 }),
+    },
   };
 
   if (!sessionSecret || sessionSecret.length < 32) problems.push('SESSION_SECRET must be set to at least 32 random characters (try: openssl rand -base64 48)');
@@ -226,7 +234,12 @@ export function preflight(config) {
   if (config.sessionSecret === DEV_SESSION_SECRET) errors.push('SESSION_SECRET is the development value.');
   if (config.encryptionKeys && config.encryptionKeys.keys.has('dev1')) errors.push('ENCRYPTION_KEYS contains the development key.');
   if (!config.databaseUrl) errors.push('DATABASE_URL is required in production (the embedded development database is not for production).');
-  if (config.mail.transport !== 'smtp') errors.push('Set SMTP_URL: production must send real email (sign-up confirmation and password reset depend on it).');
+  if (config.mail.transport !== 'smtp') {
+    if (config.signupsOpen) errors.push('Set SMTP_URL: production must send real email (sign-up confirmation and password reset depend on it). To run a watch-only site until email is set up, set SIGNUPS=closed.');
+    else warnings.push('No email (SMTP_URL is not set): sign-ups and password resets are switched off, and the site is for watching only.');
+  } else if (!config.signupsOpen) {
+    warnings.push('SIGNUPS=closed: nobody can create an account.');
+  }
   if (config.payments.provider === 'test') errors.push('PAYMENTS_PROVIDER=test is a stand-in that never moves money; it cannot run in production.');
   if (config.payments.provider === 'razorpay') {
     const rz = config.payments.razorpay;

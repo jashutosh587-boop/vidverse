@@ -1,6 +1,6 @@
 {
   "name": "vidverse",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "private": true,
   "type": "module",
   "description": "A video platform in plain JavaScript: upload, adaptive streaming, channels, comments, tips and payouts for creators, AdSense slots for the owner, a help assistant, and a security-first core.",

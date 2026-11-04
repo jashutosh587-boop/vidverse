@@ -1,7 +1,7 @@
 import express from 'express';
 import crypto from 'node:crypto';
 import { LEGAL_VERSION } from './config.js';
-import { securityHeaders, useAdsCsp } from './web/middleware/security.js';
+import { securityHeaders, applyPageCsp } from './web/middleware/security.js';
 import { requestContext } from './web/middleware/context.js';
 import { csrfProtection } from './web/middleware/csrf.js';
 import { notFoundHandler, errorHandler } from './web/middleware/errors.js';
@@ -57,7 +57,7 @@ export function createApp(ctx, { extraRoutes = [] } = {}) {
         extra.unread = await ctx.notifications.unreadCount(req.user.id);
         if (req.user.daily_limit_minutes && ctx.analytics) extra.todayWatchMs = await ctx.analytics.todayWatchMs(req.user.id);
       }
-      if (opts.ads) useAdsCsp(ctx, res);
+      applyPageCsp(ctx, res, { ads: !!opts.ads, mediaHosts: opts.mediaHosts ?? [] });
       res.setHeader('Cache-Control', 'no-store');
       res.setHeader('Vary', 'Cookie');
       res.type('html').send(String(renderLayout(req, res, content, { ...opts, extra })));

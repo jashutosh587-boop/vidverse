@@ -1,4 +1,4 @@
-import { html } from '../../../lib/html.js';
+import { html, safeExternalUrl } from '../../../lib/html.js';
 import { formatCount, formatDate, timeAgo, formatDuration } from '../../../lib/format.js';
 import { categoryLabel } from '../../../lib/video-meta.js';
 import { REPORT_REASONS } from '../../../services/moderation.js';
@@ -80,18 +80,36 @@ function commentsSection(req, { video, comments, thread, cpage, canComment, comm
   </section>`;
 }
 
+/**
+ * Where a catalog video comes from and why it may be shown here. Every link is the archive's own page; the URLs come
+ * from the importer, which only ever writes https addresses on the archive's domains, and are checked again here.
+ */
+export function creditBox(video) {
+  const o = video.origin ?? {};
+  const link = (url, text) => {
+    const safe = safeExternalUrl(url);
+    return safe ? html`<a href="${safe}" rel="noopener noreferrer nofollow" target="_blank">${text}</a>` : text;
+  };
+  return html`<div class="credit" role="note" aria-label="Source and licence">
+    <p><strong>Source:</strong> ${link(o.page_url, o.collection || 'the original archive')}${o.year ? html` <span class="muted">(${o.year})</span>` : ''}</p>
+    ${o.credit ? html`<p><strong>Credit:</strong> ${o.credit}</p>` : ''}
+    <p><strong>Licence:</strong> ${link(o.license_url, o.license || 'see the source')}. This video plays from the archive's servers. ${link(o.page_url, 'View the original')}.</p>
+  </div>`;
+}
+
 export function watchPage(req, p) {
   const { video, related, subscribers, subscribed, notify, myVote, saved, resume, comments, thread, cpage, next, ads, tipsEnabled, startAt, canComment, commentGate, autoplay, config, now } = p;
   const back = encodeURIComponent(`/watch/${video.id}`);
   const signedIn = !!req.user;
   const isOwner = req.user?.id === video.owner_id;
-  const hlsUrl = `/media/v/${video.id}/master.m3u8`;
+  const linked = video.source === 'linked';
+  const hlsUrl = linked ? '' : `/media/v/${video.id}/master.m3u8`;
   const url = `${config.baseUrl}/watch/${video.id}`;
   return html`<div class="watch">
     <div class="watch-main">
       <div class="stage">
         <video id="player" class="player" controls playsinline preload="metadata" poster="${thumbUrl(video)}"
-          data-hls="${hlsUrl}" data-video-id="${video.id}" data-duration="${video.duration_ms}" data-resume="${Math.floor(resume / 1000)}" data-start="${startAt ?? ''}"
+          data-hls="${hlsUrl}" data-src="${linked ? video.media_url : ''}" data-video-id="${video.id}" data-duration="${video.duration_ms}" data-resume="${Math.floor(resume / 1000)}" data-start="${startAt ?? ''}"
           data-next="${next ? `/watch/${next.id}` : ''}" data-next-title="${next?.title ?? ''}" data-autoplay="${autoplay ? '1' : '0'}" data-signed-in="${signedIn ? '1' : '0'}">
           <p>Your browser cannot play this video. Try a recent version of Chrome, Firefox, Edge or Safari.</p>
         </video>
@@ -140,6 +158,7 @@ export function watchPage(req, p) {
       <section class="descbox" aria-label="About this video">
         <p class="muted"><strong>${formatCount(video.views, 'view')}</strong> <span>${formatDate(video.published_at ?? video.created_at)}</span> <span>${categoryLabel(video.category)}</span></p>
         ${video.description ? html`<p class="desc">${describe(video.description, video.id, video.duration_ms)}</p>` : ''}
+        ${linked ? creditBox(video) : ''}
         ${(video.tags ?? []).length ? html`<p class="tags">${video.tags.map((t) => html`<a class="chip" href="/results?q=${encodeURIComponent(t)}">${t}</a> `)}</p>` : ''}
       </section>
       ${ads ? adSlot(config, config.ads.slotWatchTop) : ''}

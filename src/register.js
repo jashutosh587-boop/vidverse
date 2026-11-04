@@ -13,6 +13,7 @@ import { createAccountService } from './services/accounts.js';
 import { createPaymentProvider } from './services/payments/index.js';
 import { createMonetizationService } from './services/monetization.js';
 import { createRevenueService } from './services/revenue.js';
+import { createCatalogService } from './services/catalog/index.js';
 import { mediaMount } from './web/routes/media.js';
 import { studioMount } from './web/routes/studio.js';
 import { browseMount } from './web/routes/browse.js';
@@ -48,6 +49,8 @@ export function registerAll(ctx) {
   ctx.paymentProvider = createPaymentProvider(ctx);
   ctx.monetization = ctx.paymentProvider ? createMonetizationService(ctx) : null;
   ctx.revenue = createRevenueService(ctx);
+  ctx.catalog = createCatalogService(ctx);
+  ctx.catalog.register(ctx.jobs);
 
   ctx.extraRoutes = ctx.extraRoutes ?? [];
   ctx.extraRoutes.push(mediaMount, studioMount, watchMount, browseMount, channelMount, helpMount, settingsMount, moneyMount, webhookMount, adminMount);
@@ -57,8 +60,12 @@ export function registerAll(ctx) {
   // Start the background worker in this process unless it runs separately or is switched off.
   ctx.startWorker = () => {
     ctx.jobs.start();
-    ctx.maintenance.schedule().catch(() => {});
-    const t = setInterval(() => ctx.maintenance.schedule().catch(() => {}), 30 * 60_000);
+    const scheduleAll = () => {
+      ctx.maintenance.schedule().catch(() => {});
+      ctx.catalog.schedule().catch((err) => ctx.log.error('catalog schedule failed', { err }));
+    };
+    scheduleAll();
+    const t = setInterval(scheduleAll, 30 * 60_000);
     t.unref();
     ctx.onClose.push(() => clearInterval(t));
   };

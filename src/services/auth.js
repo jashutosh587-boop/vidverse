@@ -168,7 +168,8 @@ export function createAuthService(ctx) {
     async login({ email, password, ip, userAgent }) {
       const user = await db.one('SELECT * FROM users WHERE lower(email) = $1', [email]);
       const now = clock();
-      if (!user || user.status === 'deleted') {
+      // Catalog channels belong to the site and never sign in; they look exactly like an unknown address.
+      if (!user || user.status === 'deleted' || user.is_system) {
         await verifyDummy(password, config.passwordCost);
         return { result: 'invalid' };
       }
@@ -229,8 +230,8 @@ export function createAuthService(ctx) {
     },
 
     async requestPasswordReset(email) {
-      const user = await db.one(`SELECT id, status FROM users WHERE lower(email) = $1`, [email]);
-      if (!user || user.status === 'deleted') return;
+      const user = await db.one(`SELECT id, status, is_system FROM users WHERE lower(email) = $1`, [email]);
+      if (!user || user.status === 'deleted' || user.is_system) return;
       const token = await issueToken(user.id, 'reset', RESET_TTL);
       sendInBackground(email, emails.resetEmail({ ...mailCtx, token }));
     },

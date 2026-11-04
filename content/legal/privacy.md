@@ -29,6 +29,7 @@ To provide the Service; to keep it safe and fair; to recommend videos (using wha
 
 - **Service providers** who run parts of the Service for us under contract: our hosting and storage provider, our email delivery provider{{#payments}}, our payment provider (Razorpay){{/payments}}{{#ads}}, and Google for ads{{/ads}}{{#aiAssistant}}, and our AI provider for the help assistant (your question and matching help text only){{/aiAssistant}}.
 - **Other people, as part of the Service:** your public videos, comments and channel are visible to anyone. A tip's sender is shown to the creator unless the sender chose to be anonymous.
+- **Public archives, when you play a video from them:** some videos on the Service are public-domain films and footage that play directly from the archive that holds them (the NASA Image and Video Library or the Internet Archive). Each such video says so under the player. When you play one, your browser connects to that archive, which receives your IP address and the usual details a browser sends, and handles them under its own privacy policy. We do not send them your account details.
 - **Authorities,** where the law, a court order or a valid legal request requires, or where needed to protect someone's safety.
 - **A buyer or successor** if the Service is transferred, who must honour this policy.
 

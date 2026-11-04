@@ -116,7 +116,7 @@ ${iconSprite()}
       ? html`<a class="btn btn-quiet upload-link" href="/studio/upload">${icon('upload')}<span class="label">Upload</span></a>
         <a class="iconbtn bell" href="/notifications" aria-label="Notifications${extra.unread ? `, ${extra.unread} unread` : ''}">${icon('bell')}${extra.unread ? html`<span class="badge" aria-hidden="true">${extra.unread > 9 ? '9+' : extra.unread}</span>` : ''}</a>
         ${userMenu(user, req)}`
-      : html`<a class="btn btn-quiet" href="/login?next=${encodeURIComponent(req.originalUrl.startsWith('/') ? req.originalUrl.slice(0, 500) : '/')}">Sign in</a><a class="btn btn-primary" href="/signup">Create account</a>`}
+      : html`<a class="btn btn-quiet" href="/login?next=${encodeURIComponent(req.originalUrl.startsWith('/') ? req.originalUrl.slice(0, 500) : '/')}">Sign in</a>${config.signupsOpen ? html`<a class="btn btn-primary" href="/signup">Create account</a>` : ''}`}
   </div>
 </header>
 <div class="shell">

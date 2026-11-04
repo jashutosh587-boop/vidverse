@@ -20,8 +20,18 @@ export function securityHeaders(ctx) {
   };
 }
 
+/**
+ * Rebuilds this response's policy for a page that needs more than the strict default: the ads profile (a watch page
+ * that shows an ad slot) and/or extra media hosts (a catalog video that plays from its archive).
+ */
+export function applyPageCsp(ctx, res, { ads = false, mediaHosts = [] } = {}) {
+  if (!ads && !mediaHosts.length) return;
+  const profile = ads ? 'ads' : res.locals.cspProfile ?? 'strict';
+  res.locals.cspProfile = profile;
+  res.setHeader('Content-Security-Policy', buildCsp({ nonce: res.locals.nonce, profile, upgradeInsecure: ctx.config.baseUrl.startsWith('https://'), mediaHosts }));
+}
+
 /** Switch this response to the ads profile (called by the watch page when it shows an ad slot). */
 export function useAdsCsp(ctx, res) {
-  res.locals.cspProfile = 'ads';
-  res.setHeader('Content-Security-Policy', buildCsp({ nonce: res.locals.nonce, profile: 'ads', upgradeInsecure: ctx.config.baseUrl.startsWith('https://') }));
+  applyPageCsp(ctx, res, { ads: true });
 }

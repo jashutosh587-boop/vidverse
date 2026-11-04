@@ -162,6 +162,12 @@ export function createVideoService(ctx) {
 
     /** Hard delete by the owner: files first, then the row (comments, votes and history go with it). */
     async deleteVideo(id) {
+      // A catalog video deleted from the site (by staff, or purged 30 days after removal) must not return on the next import.
+      await db.query(
+        `INSERT INTO catalog_skips (provider, key, reason, created_at) SELECT origin ->> 'provider', origin ->> 'key', 'deleted from the site', $2
+           FROM videos WHERE id = $1 AND origin IS NOT NULL ON CONFLICT (provider, key) DO NOTHING`,
+        [id, clock()],
+      );
       storage.removeVideo(id);
       await db.query('DELETE FROM videos WHERE id = $1', [id]);
     },

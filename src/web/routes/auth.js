@@ -11,6 +11,7 @@ const GENERIC_LOGIN_ERROR = 'That email address and password do not match, or th
 
 export function authRoutes(ctx) {
   const r = express.Router();
+  const { config } = ctx;
   const authLimit = limit(ctx, { name: 'auth', limit: 30, windowMs: 15 * 60_000 });
   const signupLimit = limit(ctx, { name: 'signup', limit: 10, windowMs: 60 * 60_000 });
   const resetLimit = limit(ctx, { name: 'reset', limit: 8, windowMs: 60 * 60_000 });
@@ -76,9 +77,19 @@ export function authRoutes(ctx) {
     res.redirect(303, '/');
   });
 
-  r.get('/signup', signedInRedirect, (req, res) => res.page(v.signupPage(req, {}), { title: 'Create your account', noindex: true }));
+  const SIGNUPS_CLOSED = ['Sign-ups are closed for now', 'New accounts are not open yet. Everything on the site can be watched without an account.'];
+  const RESET_UNAVAILABLE = ['Password reset is not available yet', 'This site cannot send email yet, so it cannot send a reset link. Please try again later.'];
+  // In production without real email, a reset link could never arrive. Elsewhere the file outbox stands in for email.
+  const resetAvailable = () => !config.isProduction || config.mail.transport === 'smtp';
+  const closed = (res, [title, text], status = 200) => res.status(status).page(v.closedPage(title, text), { title, noindex: true });
+
+  r.get('/signup', signedInRedirect, (req, res) => {
+    if (!config.signupsOpen) return closed(res, SIGNUPS_CLOSED);
+    return res.page(v.signupPage(req, {}), { title: 'Create your account', noindex: true });
+  });
 
   r.post('/signup', signupLimit, async (req, res) => {
+    if (!config.signupsOpen) return closed(res, SIGNUPS_CLOSED, 403);
     const { data, errors } = ctx.auth.parseSignup(req.body);
     const values = { displayName: String(req.body.displayName ?? '').slice(0, 50), handle: String(req.body.handle ?? '').slice(0, 30), email: String(req.body.email ?? '').slice(0, 254), adult: req.body.adult, terms: req.body.terms };
     const again = (errs) => res.status(422).page(v.signupPage(req, { values, errors: errs }), { title: 'Create your account', noindex: true });
@@ -118,9 +129,13 @@ export function authRoutes(ctx) {
     res.redirect(303, '/login');
   });
 
-  r.get('/forgot-password', (req, res) => res.page(v.forgotPage(req, {}), { title: 'Reset your password', noindex: true }));
+  r.get('/forgot-password', (req, res) => {
+    if (!resetAvailable()) return closed(res, RESET_UNAVAILABLE);
+    return res.page(v.forgotPage(req, {}), { title: 'Reset your password', noindex: true });
+  });
 
   r.post('/forgot-password', resetLimit, async (req, res) => {
+    if (!resetAvailable()) return closed(res, RESET_UNAVAILABLE, 403);
     const parsed = parseInput(emailSchema, req.body.email);
     if (parsed.errors) return res.status(422).page(v.forgotPage(req, { values: { email: String(req.body.email ?? '').slice(0, 254) }, errors: { email: parsed.errors._ ?? 'Enter a valid email address.' } }), { title: 'Reset your password', noindex: true });
     await ctx.auth.requestPasswordReset(parsed.data);

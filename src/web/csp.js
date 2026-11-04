@@ -6,7 +6,7 @@
  * Google's guidance for AdSense under a nonce-based policy: the ad script (loaded with our nonce) may load
  * the scripts it needs ('strict-dynamic'), and ad frames, images and requests may come from https hosts.
  */
-export function buildCsp({ nonce, profile = 'strict', upgradeInsecure = false }) {
+export function buildCsp({ nonce, profile = 'strict', upgradeInsecure = false, mediaHosts = [] }) {
   const d = {
     'default-src': ["'none'"],
     'script-src': [`'nonce-${nonce}'`, "'strict-dynamic'"],
@@ -29,6 +29,10 @@ export function buildCsp({ nonce, profile = 'strict', upgradeInsecure = false })
     d['connect-src'] = ["'self'", 'https:'];
     d['frame-src'] = ['https:'];
   }
+  // A catalog video plays from the archive that holds it, so that one watch page may load media from that archive.
+  // Only exact https origins (optionally with a leading *. wildcard) are accepted, never a scheme or a keyword.
+  const extra = mediaHosts.filter((h) => /^https:\/\/(\*\.)?[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(h));
+  if (extra.length) d['media-src'] = [...d['media-src'], ...extra];
   const parts = Object.entries(d).map(([k, v]) => `${k} ${v.join(' ')}`);
   parts.push('report-uri /api/csp-report');
   if (upgradeInsecure) parts.push('upgrade-insecure-requests');

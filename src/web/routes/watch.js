@@ -115,8 +115,10 @@ export function watchRoutes(ctx) {
             }
           : undefined,
         ads,
+        mediaHosts: ctx.catalog ? ctx.catalog.mediaHosts(video) : [],
         head: ads ? adsScripts(config, res.locals.nonce) : undefined,
-        scripts: ['vendor/hls.min.js', 'js/player.js', ...(ads ? ['js/ads.js'] : [])],
+        // A catalog video is a plain MP4 the browser plays itself; only our own uploads need the HLS player library.
+        scripts: [...(video.source === 'linked' ? [] : ['vendor/hls.min.js']), 'js/player.js', ...(ads ? ['js/ads.js'] : [])],
         bodyClass: 'watching',
       },
     );

@@ -16,7 +16,12 @@ export function loginPage(req, { values = {}, error = '', next = '/', needsVerif
       ${field({ name: 'password', label: 'Password', type: 'password', autocomplete: 'current-password', required: true })}
       <button class="btn btn-primary btn-block" type="submit">Sign in</button>
     </form>
-    <p class="authlinks"><a href="/forgot-password">Forgot your password?</a> <a href="/signup">Create an account</a></p>`);
+    <p class="authlinks"><a href="/forgot-password">Forgot your password?</a> ${req.ctx.config.signupsOpen ? html`<a href="/signup">Create an account</a>` : ''}</p>`);
+}
+
+/** Shown instead of a form while the site runs without accounts or without email. */
+export function closedPage(title, text) {
+  return card(title, text, html`<p class="authlinks"><a href="/">Watch videos</a></p>`);
 }
 
 export function mfaPage(req, { error = '' }) {

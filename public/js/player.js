@@ -9,6 +9,7 @@
 
   var id = video.getAttribute('data-video-id');
   var src = video.getAttribute('data-hls');
+  var directSrc = video.getAttribute('data-src') || '';
   var resumeSec = Number(video.getAttribute('data-resume')) || 0;
   var startAt = video.getAttribute('data-start') ? Number(video.getAttribute('data-start')) : null;
   var nextUrl = video.getAttribute('data-next') || '';
@@ -29,7 +30,14 @@
     video.insertAdjacentElement('afterend', p);
   }
 
-  if (window.Hls && window.Hls.isSupported()) {
+  if (directSrc) {
+    // A catalog video: one plain MP4 served by the archive that holds it. Every browser plays that natively.
+    video.src = directSrc;
+    if (qualitySel) qualitySel.parentElement.hidden = true;
+    video.addEventListener('error', function () {
+      showProblem('This video could not be loaded from its archive just now. Reload the page or try again later.');
+    });
+  } else if (window.Hls && window.Hls.isSupported()) {
     hls = new window.Hls({ maxBufferLength: 30, backBufferLength: 60, capLevelToPlayerSize: true });
     hls.loadSource(src);
     hls.attachMedia(video);

@@ -26,6 +26,10 @@ Under the video you can change **Quality** and **Speed**. Quality is *Auto* by d
 
 When you are signed in, we remember where you stopped in each video. Open it again, or use **Continue watching** on the home page, and it carries on from there. Times in a video's description, such as 1:25, are links that jump to that moment.
 
+## Videos from public archives
+
+Some videos are public-domain films and footage from the NASA Image and Video Library and the Internet Archive. They play straight from the archive's own servers, and the box under the player names the source, the credit and the licence, with a link to the original. Quality and speed depend on the archive, so the quality menu is not shown for these videos.
+
 ## If a video will not play
 
 - A video you uploaded is only visible to you until processing has finished. See [Uploading videos](/help/uploading-videos).
