@@ -1,0 +1,51 @@
+# Installed by deploy/install.sh as /etc/systemd/system/vidverse-worker.service.
+# The installer replaces @NODE@ with the full path of the Node.js program it found.
+#
+# The worker processes uploaded videos (ffmpeg) and runs the scheduled clean-up. It runs at a lower priority so a long
+# transcode slows page loads as little as possible.
+#
+# Stopping or restarting this service while a video is being processed interrupts that video. systemd stops ffmpeg
+# together with the worker; the job is recorded as failed and tried again about 30 seconds after the worker is back
+# (three tries in all). If the worker is killed before it can record that, the job is picked up again after 30 minutes.
+[Unit]
+Description=Vidverse background worker (video processing)
+After=network-online.target postgresql.service vidverse-web.service
+Wants=network-online.target postgresql.service
+
+[Service]
+Type=simple
+User=vidverse
+Group=vidverse
+WorkingDirectory=/opt/vidverse/current
+Environment=ENV_FILE=/etc/vidverse/vidverse.env
+ExecStart=@NODE@ src/worker.js
+SyslogIdentifier=vidverse-worker
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=45
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=6
+UMask=0077
+
+NoNewPrivileges=yes
+CapabilityBoundingSet=
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectSystem=strict
+ReadWritePaths=/var/lib/vidverse
+ProtectHome=yes
+ProtectHostname=yes
+ProtectClock=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+RestrictRealtime=yes
+RestrictNamespaces=yes
+LockPersonality=yes
+SystemCallArchitectures=native
+
+[Install]
+WantedBy=multi-user.target

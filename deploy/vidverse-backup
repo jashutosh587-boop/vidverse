@@ -1,0 +1,69 @@
+#!/usr/bin/env bash
+# vidverse-backup: one backup of everything that cannot be re-created: the database, the uploaded videos, and the
+# settings file (it holds ENCRYPTION_KEYS: without it stored payout details can never be read again).
+#
+#   sudo vidverse-backup            make a backup now (a timer also runs this every night)
+#
+# Settings you can override from the environment:
+#   BACKUP_DIR  where backups go                       (default /var/backups/vidverse)
+#   KEEP        how many finished backups to keep      (default 7)
+#   ENV_FILE    the site's settings file               (default /etc/vidverse/vidverse.env)
+#   DB_NAME     the database                           (default vidverse)
+#
+# A backup on the same disk protects you from mistakes, not from losing the disk. Copy BACKUP_DIR somewhere else
+# (your provider's snapshots, or another machine) and keep a copy of the settings file in a password manager.
+set -euo pipefail
+umask 077
+
+ENV_FILE=${ENV_FILE:-/etc/vidverse/vidverse.env}
+BACKUP_DIR=${BACKUP_DIR:-/var/backups/vidverse}
+KEEP=${KEEP:-7}
+DB_NAME=${DB_NAME:-vidverse}
+[ "$(id -u)" -eq 0 ] || { echo "Run this as root: sudo vidverse-backup" >&2; exit 1; }
+[ -r "$ENV_FILE" ] || { echo "Cannot read $ENV_FILE" >&2; exit 1; }
+DATA_DIR=${DATA_DIR:-$(sed -n 's/^DATA_DIR=//p' "$ENV_FILE" | tail -1)}
+[ -n "$DATA_DIR" ] && [ -d "$DATA_DIR" ] || { echo "Cannot find the videos folder (DATA_DIR in $ENV_FILE)" >&2; exit 1; }
+command -v rsync >/dev/null || { echo "rsync is not installed: sudo apt-get install rsync" >&2; exit 1; }
+
+# Two backups at once (the nightly timer and one made by hand) would trample each other.
+exec 9> "${LOCK_FILE:-/var/lock/vidverse-backup.lock}"
+flock -n 9 || { echo "Another backup is already running." >&2; exit 1; }
+
+install -d -m 700 "$BACKUP_DIR"
+stamp=$(date -u +%Y%m%d-%H%M%S)
+while [ -e "$BACKUP_DIR/$stamp" ]; do sleep 1; stamp=$(date -u +%Y%m%d-%H%M%S); done   # never reuse a folder
+dest="$BACKUP_DIR/$stamp"
+install -d -m 700 "$dest"
+trap 'echo "Backup failed; the unfinished folder $dest was left in place and will be ignored." >&2' ERR
+
+# The newest finished backup: unchanged videos are hard-linked to it, so a night without uploads costs almost no space.
+prev=""
+for d in "$BACKUP_DIR"/*/; do
+  b=$(basename "$d")
+  [[ $b =~ ^[0-9]{8}-[0-9]{6}$ && $b != "$stamp" && -e "$d/COMPLETE" ]] && prev=$b
+done
+
+# 1. The database, as a consistent snapshot while the site keeps running.
+runuser -u postgres -- pg_dump --format=custom --dbname="$DB_NAME" > "$dest/database.dump"
+# 2. The settings and keys.
+install -m 600 "$ENV_FILE" "$dest/vidverse.env"
+# 3. The videos and pictures.
+link=()
+[ -n "$prev" ] && [ -d "$BACKUP_DIR/$prev/media" ] && link=("--link-dest=$BACKUP_DIR/$prev/media")
+rsync -a "${link[@]}" "$DATA_DIR"/ "$dest/media/"
+
+# Only a backup with this marker counts. A half-made one is never used and never counts towards KEEP.
+date -u +%Y-%m-%dT%H:%M:%SZ > "$dest/COMPLETE"
+trap - ERR
+
+# Keep the newest KEEP finished backups. We hold the lock, so an unfinished folder is left over from a failed run: remove it.
+finished=()
+for d in "$BACKUP_DIR"/*/; do
+  b=$(basename "$d")
+  [[ $b =~ ^[0-9]{8}-[0-9]{6}$ ]] || continue
+  if [ -e "$d/COMPLETE" ]; then finished+=("$b"); else rm -rf -- "${BACKUP_DIR:?}/$b"; fi
+done
+excess=$(( ${#finished[@]} - KEEP ))
+for ((i = 0; i < excess; i++)); do rm -rf -- "${BACKUP_DIR:?}/${finished[$i]}"; done
+
+echo "Backup $stamp done: $(du -sh "$dest" | cut -f1) in $dest ($(( ${#finished[@]} - (excess > 0 ? excess : 0) )) kept)"

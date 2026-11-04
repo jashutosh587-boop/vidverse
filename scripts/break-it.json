@@ -1,0 +1,462 @@
+[
+  {
+    "name": "csrf-token",
+    "what": "CSRF: stop checking the token on state-changing requests",
+    "engine": "pglite",
+    "expect": "caught",
+    "edits": [
+      {
+        "file": "src/web/middleware/csrf.js",
+        "from": "if (!sent || !safeEqual(sent, req.csrfToken)) return next(fail());",
+        "to": "if (false && (!sent || !safeEqual(sent, req.csrfToken))) return next(fail());"
+      }
+    ],
+    "tests": [
+      "tests/web.test.js",
+      "tests/auth.test.js",
+      "tests/settings.test.js"
+    ]
+  },
+  {
+    "name": "csrf-origin",
+    "what": "CSRF: stop checking Origin and Sec-Fetch-Site",
+    "engine": "pglite",
+    "expect": "caught",
+    "edits": [
+      {
+        "file": "src/web/middleware/csrf.js",
+        "from": "if (origin !== allowedOrigin && !dev) return next(fail());",
+        "to": "if (false && origin !== allowedOrigin && !dev) return next(fail());"
+      },
+      {
+        "file": "src/web/middleware/csrf.js",
+        "from": "if (site !== undefined && site !== 'same-origin' && site !== 'none') return next(fail());",
+        "to": "if (false && site !== undefined && site !== 'same-origin' && site !== 'none') return next(fail());"
+      }
+    ],
+    "tests": [
+      "tests/web.test.js",
+      "tests/auth.test.js",
+      "tests/settings.test.js"
+    ]
+  },
+  {
+    "name": "ownership",
+    "what": "Studio: let anyone open and change any video (ownership check removed)",
+    "engine": "pglite",
+    "expect": "caught",
+    "edits": [
+      {
+        "file": "src/web/routes/studio.js",
+        "from": "if (!video || video.owner_id !== req.user.id) throw notFound",
+        "to": "if (!video) throw notFound"
+      }
+    ],
+    "tests": [
+      "tests/videos.test.js",
+      "tests/web.test.js"
+    ]
+  },
+  {
+    "name": "escaping",
+    "what": "Templates: stop escaping text put into pages",
+    "engine": "pglite",
+    "expect": "caught",
+    "edits": [
+      {
+        "file": "src/lib/html.js",
+        "from": "return String(value).replace(/[&<>\"']/g, (c) => ESC[c]);",
+        "to": "return String(value);"
+      }
+    ],
+    "tests": [
+      "tests/lib.test.js",
+      "tests/web.test.js",
+      "tests/engagement.test.js",
+      "tests/help.test.js"
+    ]
+  },
+  {
+    "name": "hold",
+    "what": "Money: tips are available at once (the holding period removed)",
+    "engine": "pglite",
+    "expect": "caught",
+    "edits": [
+      {
+        "file": "src/services/monetization.js",
+        "from": "const availableAt = new Date(paidAt.getTime() + pay.holdDays * DAY);",
+        "to": "const availableAt = new Date(paidAt.getTime());"
+      }
+    ],
+    "tests": [
+      "tests/money-tips.test.js",
+      "tests/money-payouts.test.js",
+      "tests/money-webhook.test.js"
+    ]
+  },
+  {
+    "name": "payout-guard-only",
+    "what": "Payouts: remove only the application-level \"one open request\" check (the database index should still stop a second one)",
+    "engine": "pglite",
+    "expect": "caught",
+    "edits": [
+      {
+        "file": "src/services/monetization.js",
+        "from": "if (await db.one(`SELECT 1 AS x FROM payouts WHERE user_id = $1 AND status IN ('requested', 'approved')`, [userId])) {",
+        "to": "if (false && await db.one(`SELECT 1 AS x FROM payouts WHERE user_id = $1 AND status IN ('requested', 'approved')`, [userId])) {"
+      }
+    ],
+    "tests": [
+      "tests/money-payouts.test.js"
+    ]
+  },
+  {
+    "name": "payout-guard-and-index",
+    "what": "Payouts: remove the application check AND the database index, so nothing stops two open requests",
+    "engine": "pglite",
+    "expect": "caught",
+    "edits": [
+      {
+        "file": "src/services/monetization.js",
+        "from": "if (await db.one(`SELECT 1 AS x FROM payouts WHERE user_id = $1 AND status IN ('requested', 'approved')`, [userId])) {",
+        "to": "if (false && await db.one(`SELECT 1 AS x FROM payouts WHERE user_id = $1 AND status IN ('requested', 'approved')`, [userId])) {"
+      },
+      {
+        "file": "src/db/migrations/001_init.sql",
+        "from": "CREATE UNIQUE INDEX payouts_one_open ON payouts (user_id) WHERE status IN ('requested', 'approved');",
+        "to": "-- (index removed for the experiment)"
+      }
+    ],
+    "tests": [
+      "tests/money-payouts.test.js"
+    ]
+  },
+  {
+    "name": "payout-lock-only",
+    "what": "Payouts: remove only the row lock (FOR UPDATE)",
+    "engine": "pglite",
+    "expect": "survives",
+    "note": "Cannot be seen here: the embedded database runs one statement at a time, and the unique index is a second layer for the same rule.",
+    "edits": [
+      {
+        "file": "src/services/monetization.js",
+        "from": "'SELECT id FROM users WHERE id = $1 FOR UPDATE', [userId]); // one request at a time per person",
+        "to": "'SELECT id FROM users WHERE id = $1', [userId]); // one request at a time per person"
+      }
+    ],
+    "tests": [
+      "tests/money-payouts.test.js"
+    ]
+  },
+  {
+    "name": "report-claim",
+    "what": "Moderation: a report can be decided twice (the \"still open\" condition removed)",
+    "engine": "pglite",
+    "expect": "caught",
+    "edits": [
+      {
+        "file": "src/services/moderation.js",
+        "from": "WHERE id = $1 AND status = 'open' RETURNING *`,\n          [reportId, decision",
+        "to": "WHERE id = $1 RETURNING *`,\n          [reportId, decision"
+      }
+    ],
+    "tests": [
+      "tests/admin.test.js"
+    ]
+  },
+  {
+    "name": "heartbeat-cap",
+    "what": "Views: remove the cumulative cap on watch time a player may report",
+    "engine": "pglite",
+    "expect": "caught",
+    "edits": [
+      {
+        "file": "src/services/analytics.js",
+        "from": "const allowed = Math.max(0, Math.min(perReport, budget - prev));",
+        "to": "const allowed = perReport; void budget; void prev;"
+      }
+    ],
+    "tests": [
+      "tests/engagement.test.js"
+    ]
+  },
+  {
+    "name": "webhook-signature",
+    "what": "Payments: accept a webhook without checking its signature",
+    "engine": "pglite",
+    "expect": "caught",
+    "edits": [
+      {
+        "file": "src/services/payments/razorpay.js",
+        "from": "if (!given || !safeEqual(given, expected)) return null;",
+        "to": "if (false && (!given || !safeEqual(given, expected))) return null;"
+      }
+    ],
+    "tests": [
+      "tests/money-webhook.test.js"
+    ]
+  },
+  {
+    "name": "ads-owner",
+    "what": "Ads: show ads to the video's own owner and to staff",
+    "engine": "pglite",
+    "expect": "caught",
+    "edits": [
+      {
+        "file": "src/web/views/ads.js",
+        "from": "if (viewer && (viewer.id === video.owner_id || viewer.role === 'admin' || viewer.role === 'moderator')) return false;",
+        "to": ""
+      }
+    ],
+    "tests": [
+      "tests/web.test.js"
+    ]
+  },
+  {
+    "name": "log-redaction",
+    "what": "Logging: stop hiding fields that look secret (passwords, tokens, cookies)",
+    "engine": "pglite",
+    "expect": "caught",
+    "edits": [
+      {
+        "file": "src/lib/logger.js",
+        "from": "out[k] = SECRET_KEYS.test(k) ? '[redacted]' : clean(v, depth + 1);",
+        "to": "out[k] = clean(v, depth + 1);"
+      }
+    ],
+    "tests": [
+      "tests/lib.test.js"
+    ]
+  },
+  {
+    "name": "heartbeat-lock",
+    "what": "Views: remove the per-viewer lock that makes a burst of first reports take turns",
+    "engine": "postgres",
+    "expect": "caught",
+    "edits": [
+      {
+        "file": "src/services/analytics.js",
+        "from": "if (db.kind === 'pg') await db.query('SELECT pg_advisory_xact_lock(hashtextextended($1, 0))', [`beat:${video.id}:${day}:${hash}`]);",
+        "to": ""
+      }
+    ],
+    "tests": [
+      "tests/concurrency.test.js"
+    ]
+  },
+  {
+    "name": "payout-lock-only-pg",
+    "what": "Payouts: remove only the row lock (the unique index should still stop a second open request)",
+    "engine": "postgres",
+    "expect": "varies",
+    "note": "The money stays safe (the unique index holds). Some people would be told \"you can withdraw up to 0\" instead of \"a request is already open\". That is a race, so it is caught in about 3 runs out of 5.",
+    "edits": [
+      {
+        "file": "src/services/monetization.js",
+        "from": "'SELECT id FROM users WHERE id = $1 FOR UPDATE', [userId]); // one request at a time per person",
+        "to": "'SELECT id FROM users WHERE id = $1', [userId]); // one request at a time per person"
+      }
+    ],
+    "tests": [
+      "tests/concurrency.test.js"
+    ]
+  },
+  {
+    "name": "payout-index-only",
+    "what": "Payouts: remove only the unique index (the row lock should still keep requests to one at a time)",
+    "engine": "postgres",
+    "expect": "survives",
+    "note": "By design: the row lock alone keeps requests to one at a time. Removing both (payout-lock-and-index) is caught.",
+    "edits": [
+      {
+        "file": "src/db/migrations/001_init.sql",
+        "from": "CREATE UNIQUE INDEX payouts_one_open ON payouts (user_id) WHERE status IN ('requested', 'approved');",
+        "to": "-- (index removed for the experiment)"
+      }
+    ],
+    "tests": [
+      "tests/concurrency.test.js"
+    ]
+  },
+  {
+    "name": "payout-lock-and-index",
+    "what": "Payouts: remove the row lock AND the unique index (only the check-then-insert is left)",
+    "engine": "postgres",
+    "expect": "caught",
+    "edits": [
+      {
+        "file": "src/services/monetization.js",
+        "from": "'SELECT id FROM users WHERE id = $1 FOR UPDATE', [userId]); // one request at a time per person",
+        "to": "'SELECT id FROM users WHERE id = $1', [userId]); // one request at a time per person"
+      },
+      {
+        "file": "src/db/migrations/001_init.sql",
+        "from": "CREATE UNIQUE INDEX payouts_one_open ON payouts (user_id) WHERE status IN ('requested', 'approved');",
+        "to": "-- (index removed for the experiment)"
+      }
+    ],
+    "tests": [
+      "tests/concurrency.test.js"
+    ]
+  },
+  {
+    "name": "payment-row-lock",
+    "what": "Webhook: remove the lock on the payment row (the ledger unique key should still stop a double credit)",
+    "engine": "postgres",
+    "expect": "caught",
+    "edits": [
+      {
+        "file": "src/services/monetization.js",
+        "from": "'SELECT * FROM payments WHERE provider_ref = $1 FOR UPDATE'",
+        "to": "'SELECT * FROM payments WHERE provider_ref = $1'"
+      }
+    ],
+    "tests": [
+      "tests/concurrency.test.js"
+    ]
+  },
+  {
+    "name": "payout-decide-once",
+    "what": "Payouts: a decline no longer checks the request is still open (so it can undo one already paid)",
+    "engine": "postgres",
+    "expect": "caught",
+    "edits": [
+      {
+        "file": "src/services/monetization.js",
+        "from": "`UPDATE payouts SET status = 'rejected', decided_by = $2, decided_at = $3, note = $4 WHERE id = $1 AND status IN ('requested', 'approved') AND user_id <> $2 RETURNING user_id, amount_minor, currency`",
+        "to": "`UPDATE payouts SET status = 'rejected', decided_by = $2, decided_at = $3, note = $4 WHERE id = $1 AND user_id <> $2 RETURNING user_id, amount_minor, currency`"
+      }
+    ],
+    "tests": [
+      "tests/concurrency.test.js"
+    ]
+  },
+  {
+    "name": "jobs-skip-locked",
+    "what": "Job queue: remove FOR UPDATE SKIP LOCKED (two workers can take the same job)",
+    "engine": "postgres",
+    "expect": "caught",
+    "edits": [
+      {
+        "file": "src/services/jobs.js",
+        "from": "ORDER BY run_after, id FOR UPDATE SKIP LOCKED LIMIT 1",
+        "to": "ORDER BY run_after, id LIMIT 1"
+      }
+    ],
+    "tests": [
+      "tests/concurrency.test.js"
+    ]
+  },
+  {
+    "name": "signup-race-handling",
+    "what": "Sign-up: forget to handle the database saying \"already taken\" when two sign-ups race",
+    "engine": "postgres",
+    "expect": "caught",
+    "edits": [
+      {
+        "file": "src/services/auth.js",
+        "from": "if (isUniqueViolation(e, 'handle')) throw new ValidationError({ handle: 'That handle is taken. Try another.' });\n        if (isUniqueViolation(e, 'email')) return { status: 'exists' };\n",
+        "to": ""
+      }
+    ],
+    "tests": [
+      "tests/concurrency.test.js"
+    ]
+  },
+  {
+    "name": "clock-videos",
+    "what": "Clocks: stamp new videos with the real clock instead of the application clock",
+    "engine": "pglite",
+    "expect": "caught",
+    "edits": [
+      {
+        "file": "src/services/videos.js",
+        "from": "const stamped = clock();",
+        "to": "const stamped = new Date();"
+      }
+    ],
+    "tests": [
+      "tests/maintenance.test.js"
+    ]
+  },
+  {
+    "name": "clock-notifications",
+    "what": "Clocks: stamp new notifications with the real clock instead of the application clock",
+    "engine": "pglite",
+    "expect": "caught",
+    "edits": [
+      {
+        "file": "src/services/notifications.js",
+        "from": "JSON.stringify(data), ctx.clock()]",
+        "to": "JSON.stringify(data), new Date()]"
+      }
+    ],
+    "tests": [
+      "tests/maintenance.test.js"
+    ]
+  },
+  {
+    "name": "clock-subscriptions",
+    "what": "Clocks: stamp new subscriptions with the real clock instead of the application clock",
+    "engine": "pglite",
+    "expect": "caught",
+    "edits": [
+      {
+        "file": "src/services/engagement.js",
+        "from": "ON CONFLICT DO NOTHING', [userId, channelId, clock()]",
+        "to": "ON CONFLICT DO NOTHING', [userId, channelId, new Date()]"
+      }
+    ],
+    "tests": [
+      "tests/maintenance.test.js"
+    ]
+  },
+  {
+    "name": "purge-notifications",
+    "what": "Housekeeping: notifications are removed after 9 days instead of 90",
+    "engine": "pglite",
+    "expect": "caught",
+    "edits": [
+      {
+        "file": "src/services/notifications.js",
+        "from": "days * 86400_000",
+        "to": "days * 86400_00"
+      }
+    ],
+    "tests": [
+      "tests/maintenance.test.js"
+    ]
+  },
+  {
+    "name": "abandoned-uploads",
+    "what": "Housekeeping: an unfinished upload is deleted at once instead of after a day",
+    "engine": "pglite",
+    "expect": "caught",
+    "edits": [
+      {
+        "file": "src/services/videos.js",
+        "from": "new Date(now.getTime() - 24 * 3600_000),",
+        "to": "new Date(now.getTime() + 24 * 3600_000),"
+      }
+    ],
+    "tests": [
+      "tests/maintenance.test.js"
+    ]
+  },
+  {
+    "name": "stuck-jobs",
+    "what": "Job queue: a job still being worked on is treated as dead after one millisecond",
+    "engine": "pglite",
+    "expect": "caught",
+    "edits": [
+      {
+        "file": "src/services/jobs.js",
+        "from": "async recoverStuck(olderThanMs = 30 * 60_000)",
+        "to": "async recoverStuck(olderThanMs = 1)"
+      }
+    ],
+    "tests": [
+      "tests/maintenance.test.js"
+    ]
+  }
+]

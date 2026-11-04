@@ -1,0 +1,13 @@
+# Installed by deploy/install.sh as /etc/systemd/system/vidverse-backup.timer.
+# 22:00 UTC is 03:30 in India, a quiet hour for most of the audience this was written for. Change it for yours.
+# "Persistent" runs a missed backup as soon as the server is back on.
+[Unit]
+Description=Nightly Vidverse backup
+
+[Timer]
+OnCalendar=*-*-* 22:00:00 UTC
+RandomizedDelaySec=20min
+Persistent=true
+
+[Install]
+WantedBy=timers.target

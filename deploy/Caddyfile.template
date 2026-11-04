@@ -1,0 +1,15 @@
+# Vidverse installer: this file was written by deploy/install.sh on @DATE@.
+# Edit it freely. Once this first line is in place the installer will not overwrite it. (Delete the line, or the
+# file, if you want the installer to write a fresh one.)
+#
+# The password for a closed beta is kept in a separate file so it can be switched without touching this one:
+#     sudo vidverse gate on        sudo vidverse gate off
+{
+	# Only used for expiry notices from the certificate authority.
+	email @ACME_EMAIL@
+}
+
+@DOMAIN@ {
+	import /etc/caddy/vidverse-gate.caddy
+	reverse_proxy 127.0.0.1:3000
+}

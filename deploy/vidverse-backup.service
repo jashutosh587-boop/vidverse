@@ -1,0 +1,11 @@
+# Installed by deploy/install.sh as /etc/systemd/system/vidverse-backup.service. Started every night by the timer, or
+# by hand with:  sudo vidverse backup
+[Unit]
+Description=Vidverse backup (database, videos, settings)
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/vidverse-backup
+SyslogIdentifier=vidverse-backup
+Nice=15
+IOSchedulingClass=idle

@@ -1,0 +1,64 @@
+# Vidverse server settings.
+#
+# Copy this file, fill it in, and give it to the installer:
+#
+#     cp deploy/setup.conf.example ~/vidverse-setup.conf
+#     nano ~/vidverse-setup.conf
+#     sudo ./deploy/install.sh ~/vidverse-setup.conf
+#
+# One  KEY=value  per line. No quotes, no spaces around the "=". Notes go on their own lines, starting with #.
+# Keep the file private: it can hold your mail password. The installer reads it once. After that the live settings
+# are in /etc/vidverse/vidverse.env, and this file is no longer needed.
+
+# ------------------------------------------------------------------ required
+
+# The address people will type, without https:// and without a slash. Its DNS "A" record must already point at
+# this server, or the HTTPS certificate cannot be issued and the installer stops.
+DOMAIN=videos.example.com
+
+# Shown on the legal pages. Use a name and a postal address you are happy to publish.
+OPERATOR_NAME=Your Name or Company
+OPERATOR_ADDRESS=Street, City, State, PIN code, Country
+CONTACT_EMAIL=you@example.com
+
+# The person users write to about complaints and takedown requests. India's IT Rules expect a named grievance
+# officer who answers within the time limits. This mailbox has to be read.
+GRIEVANCE_OFFICER_NAME=Your Name
+GRIEVANCE_OFFICER_EMAIL=grievance@example.com
+
+# Where sign-up and password-reset emails are sent from. Get these from a mail service (Brevo, Mailgun, Amazon SES,
+# your domain's mail host). Port 465 goes with smtps://, port 587 or 2525 with smtp://. If the password has symbols
+# such as @ # / : write them as %40 %23 %2F %3A.
+# Many server hosts block outgoing ports 25 and 465 on new accounts; 587 and 2525 are usually open.
+SMTP_URL=smtp://username:password@smtp.example.com:587
+MAIL_FROM=Vidverse <no-reply@videos.example.com>
+
+# ------------------------------------------------------------------ optional (the values shown are the defaults)
+
+# Your country's law, as it should read on the legal pages.
+#LEGAL_JURISDICTION=India
+#SITE_NAME=Vidverse
+
+# A closed beta: while this is "on", the whole site asks for one shared password (user name: beta) before showing
+# anything, so only people you invite can sign up and upload. Turn it off later with:  sudo vidverse gate off
+# If BETA_PASSWORD is empty the installer makes one up and shows it once at the end.
+#BETA_GATE=on
+#BETA_PASSWORD=
+
+# Certificate expiry notices from the certificate authority go here. Empty means CONTACT_EMAIL.
+#ACME_EMAIL=
+
+# The help assistant uses this key if you have one. Without it the assistant quotes help articles.
+#ANTHROPIC_API_KEY=
+
+# Starting limits for a small server. standard = several sizes up to 1080p; fast = one small size (much cheaper to
+# process). Sizes are in bytes: 1073741824 = 1 GiB, 5368709120 = 5 GiB.
+#TRANSCODE_PROFILE=standard
+#MAX_VIDEO_SECONDS=1800
+#MAX_UPLOAD_BYTES=1073741824
+#CREATOR_STORAGE_QUOTA_BYTES=5368709120
+#DAILY_UPLOAD_LIMIT=5
+
+# Set to "yes" only if the installer's check that DOMAIN points at this machine is wrong for you (for example a
+# server behind a private address that your host maps to a public one).
+#SKIP_DNS_CHECK=no

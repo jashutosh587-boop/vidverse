@@ -1,0 +1,263 @@
+#!/usr/bin/env bash
+# vidverse: everyday commands for a server set up with deploy/install.sh. Run it with sudo.
+#
+# The installer copies this to /usr/local/bin/vidverse and fills in @NODE@ (the path of the Node.js program).
+set -euo pipefail
+
+NODE=@NODE@
+APP=/opt/vidverse/current
+ENV_FILE=${ENV_FILE:-/etc/vidverse/vidverse.env}
+CADDYFILE=${CADDYFILE:-/etc/caddy/Caddyfile}
+GATE_FILE=${GATE_FILE:-/etc/caddy/vidverse-gate.caddy}
+BACKUP_DIR=${BACKUP_DIR:-/var/backups/vidverse}
+GATE_USER=beta
+
+usage() {
+  cat <<'EOF'
+Usage: sudo vidverse <command>
+
+  status                   is everything running? (website, worker, web server, database, disk, last backup)
+  logs [web|worker|caddy]  show the log and keep following it (Ctrl-C to stop)
+  make-admin EMAIL         make an account an administrator (the person must have signed up and confirmed the email)
+  mail-test EMAIL          send one test email using the site's mail settings
+  backup                   make a backup now
+  restore BACKUPFOLDER     put a backup back: the database, the videos and the two secret keys (asks first, and backs up
+                           what is on this server before replacing it)
+  gate on [PASSWORD]       closed beta: ask everybody for one shared password (user name "beta") before showing the site
+  gate off                 open the site to everyone
+
+The site's settings are in /etc/vidverse/vidverse.env. After editing them:  sudo systemctl restart vidverse-web vidverse-worker
+EOF
+}
+
+die() { echo "vidverse: $*" >&2; exit 1; }
+case "${1:-}" in -h | --help | help | "") usage; exit 0 ;; esac
+[ "$(id -u)" -eq 0 ] || die "run this with sudo:  sudo vidverse $1"
+[ -r "$ENV_FILE" ] || die "cannot read $ENV_FILE. Has deploy/install.sh been run on this server?"
+
+# Run one of the site's own scripts (scripts/<name>.js) as the unprivileged site user, with the site's settings.
+as_site() {
+  local script=$1; shift
+  ( cd "$APP" && runuser -u vidverse -- env ENV_FILE="$ENV_FILE" "$NODE" "scripts/$script.js" "$@" )
+}
+
+env_value() { sed -n "s/^$1=//p" "$ENV_FILE" | tail -1; }
+
+# The newest backup that finished (only a folder with a COMPLETE marker counts). Prints its folder name, or nothing.
+latest_backup() {
+  local d b last=""
+  for d in "$BACKUP_DIR"/*/; do
+    [ -d "$d" ] || continue
+    b=$(basename "$d")
+    [ -e "$d/COMPLETE" ] && last=$b
+  done
+  printf '%s' "$last"
+}
+
+gate_state() {
+  if grep -q '^[[:space:]]*basic' "$GATE_FILE" 2>/dev/null; then echo "on (asks for a shared password)"; else echo "off (open to everyone)"; fi
+}
+
+cmd_status() {
+  local base health free used last svc
+  base=$(env_value BASE_URL)
+  echo "Vidverse at ${base:-?}"
+  for svc in vidverse-web vidverse-worker caddy postgresql; do
+    printf '  %-18s %s\n' "$svc" "$(systemctl is-active "$svc" 2>/dev/null || true)"
+  done
+  if health=$(curl -fsS --max-time 5 http://127.0.0.1:3000/api/health 2>&1); then
+    printf '  %-18s %s\n' "health" "ok ($health)"
+  else
+    printf '  %-18s %s\n' "health" "NOT ANSWERING: sudo vidverse logs web"
+  fi
+  local data; data=$(env_value DATA_DIR); data=${data:-/var/lib/vidverse}
+  free=$(df -h --output=avail "$data" 2>/dev/null | tail -1 | tr -d ' ')
+  used=$(du -sh "$data" 2>/dev/null | cut -f1)
+  printf '  %-18s %s\n' "disk" "${free:-?} free; videos and data use ${used:-?}"
+  printf '  %-18s %s\n' "closed beta gate" "$(gate_state)"
+  last=$(latest_backup)
+  printf '  %-18s %s\n' "last backup" "${last:-NONE YET: sudo vidverse backup}"
+}
+
+cmd_logs() {
+  case "${1:-web}" in
+    web) exec journalctl -u vidverse-web -f -o cat ;;
+    worker) exec journalctl -u vidverse-worker -f -o cat ;;
+    caddy) exec journalctl -u caddy -f -o cat ;;
+    *) die "logs: choose web, worker or caddy" ;;
+  esac
+}
+
+write_gate() { # $1 = bcrypt hash, or empty for "off"
+  local tmp; tmp=$(mktemp "${GATE_FILE}.XXXXXX")
+  if [ -n "$1" ]; then
+    {
+      echo "# Written by 'vidverse gate on'. Everything except the health check asks for this user name and password."
+      echo "@vidverse_gated not path /api/health"
+      echo "basicauth @vidverse_gated {"
+      printf '\t%s %s\n' "$GATE_USER" "$1"
+      echo "}"
+    } > "$tmp"
+  else
+    echo "# Written by 'vidverse gate off'. The site is open to everyone. 'sudo vidverse gate on' puts the password back." > "$tmp"
+  fi
+  chown root:caddy "$tmp" 2>/dev/null || true
+  chmod 640 "$tmp"
+  mv -f "$tmp" "$GATE_FILE"
+}
+
+cmd_gate() {
+  local mode=${1:-} old
+  [ -e "$GATE_FILE" ] || die "$GATE_FILE is missing. Has deploy/install.sh been run on this server?"
+  old=$(mktemp); cp -p "$GATE_FILE" "$old"
+  case "$mode" in
+    on)
+      local pw=${2:-} shown=no hash
+      if [ -z "$pw" ]; then pw=$(openssl rand -base64 24 | tr -d '/+=' | cut -c1-20); shown=yes; fi
+      [ "${#pw}" -ge 8 ] || { rm -f "$old"; die "the password must have at least 8 characters"; }
+      hash=$(printf '%s\n' "$pw" | caddy hash-password) || { rm -f "$old"; die "could not hash the password"; }
+      write_gate "$hash"
+      if [ "$shown" = yes ]; then echo "User name: $GATE_USER"; echo "Password:  $pw   (shown once: save it, or set your own with 'sudo vidverse gate on <password>')"; fi
+      ;;
+    off) write_gate "" ;;
+    *) rm -f "$old"; usage; exit 1 ;;
+  esac
+  if ! caddy validate --config "$CADDYFILE" --adapter caddyfile >/dev/null 2>&1; then
+    cp -p "$old" "$GATE_FILE"; rm -f "$old"
+    die "the web server did not accept the new setting, so the old one was put back"
+  fi
+  rm -f "$old"
+  # The installer sets VIDVERSE_NO_RELOAD while it builds the first configuration, before the web server is switched over.
+  [ "${VIDVERSE_NO_RELOAD:-}" = 1 ] || systemctl reload caddy
+  echo "Closed beta gate is now: $(gate_state)"
+  if [ "$mode" = off ]; then
+    cat <<'EOF'
+Anyone can now sign up and upload. Before you tell the public about the site, check:
+  - the legal pages are reviewed by a lawyer (then put LEGAL_REVIEWED=true in /etc/vidverse/vidverse.env)
+  - someone reads the report and takedown mailboxes every day
+  - the limits in /etc/vidverse/vidverse.env fit what you can afford to store and serve
+EOF
+  fi
+}
+
+# Replace the line "KEY=..." in the settings file with the one from a backup's copy of it. The line is passed through the
+# environment so that backslashes, quotes and $ in a secret are never interpreted.
+copy_env_line() { # key from-file to-file
+  local key=$1 from=$2 to=$3 line tmp
+  line=$(grep -m1 "^$key=." "$from") || return 1
+  tmp=$(mktemp "$to.XXXXXX")
+  LINE=$line KEY=$key awk 'index($0, ENVIRON["KEY"] "=") == 1 && !done { print ENVIRON["LINE"]; done = 1; next } { print }' "$to" > "$tmp"
+  grep -q "^$key=" "$tmp" || printf '%s\n' "$line" >> "$tmp"
+  chown root:vidverse "$tmp"
+  chmod 640 "$tmp"
+  mv -f "$tmp" "$to"
+}
+
+cmd_restore() {
+  local yes=no safety=yes dir="" answer
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --yes) yes=yes ;;
+      --no-safety-backup) safety=no ;;
+      -*) die "restore: unknown option $1" ;;
+      *) [ -z "$dir" ] || die "restore: give one backup folder, not several"; dir=$1 ;;
+    esac
+    shift
+  done
+  [ -n "$dir" ] || die "restore needs the backup folder, for example:  sudo vidverse restore $BACKUP_DIR/$(latest_backup || true)"
+  [ -d "$dir" ] || die "restore: $dir is not a folder"
+  dir=$(readlink -f -- "$dir")
+
+  # Everything is checked before anything is changed.
+  [ -e "$dir/COMPLETE" ] || die "restore: $dir is not a finished backup (it has no COMPLETE marker). A backup that was interrupted cannot be used."
+  [ -s "$dir/database.dump" ] || die "restore: $dir has no database.dump"
+  [ -r "$dir/vidverse.env" ] || die "restore: $dir has no vidverse.env"
+  [ -d "$dir/media" ] || die "restore: $dir has no media folder"
+  pg_restore --list "$dir/database.dump" > /dev/null 2>&1 || die "restore: $dir/database.dump cannot be read as a database backup. Is the file damaged, or was it copied in text mode?"
+  local key
+  for key in SESSION_SECRET ENCRYPTION_KEYS; do
+    grep -q "^$key=." "$dir/vidverse.env" || die "restore: the settings file in the backup has no $key, and the data cannot be read without it."
+  done
+  local data
+  data=$(env_value DATA_DIR); data=${data:-/var/lib/vidverse}
+  # rsync --delete below removes whatever is in this folder that is not in the backup: be sure it is the site's own folder.
+  [ -d "$data" ] && [ "$(stat -c %U "$data")" = vidverse ] && [[ $data == /*/* ]] \
+    || die "restore: DATA_DIR ($data) is not a folder owned by the 'vidverse' user, so it will not be emptied. Check DATA_DIR in $ENV_FILE."
+  runuser -u postgres -- pg_isready -q || die "restore: PostgreSQL is not answering. Look at:  sudo systemctl status postgresql"
+  command -v rsync > /dev/null || die "restore: rsync is not installed:  sudo apt-get install rsync"
+
+  if [ "$yes" != yes ]; then
+    [ -t 0 ] || die "restore: not running in a terminal, so it cannot ask. Add --yes to go ahead."
+    cat << EOF
+This REPLACES what is on this server with the backup taken at $(cat "$dir/COMPLETE"):
+  - the database (accounts, videos, comments, money records)
+  - the uploaded videos and pictures
+  - the two secret keys in $ENV_FILE (SESSION_SECRET and ENCRYPTION_KEYS); all other settings stay as they are
+The site is offline while this runs. What is on this server now is backed up first.
+EOF
+    printf 'Type RESTORE to continue: '
+    read -r answer
+    [ "$answer" = RESTORE ] || die "cancelled. Nothing was changed."
+  fi
+
+  # No nightly backup may run while the database is half restored. A backup run also deletes the oldest backups, which
+  # could be the very one being restored.
+  exec 9> "${LOCK_FILE:-/var/lock/vidverse-backup.lock}"
+  flock -n 9 || die "a backup is running right now. Wait a minute and try again. Nothing was changed."
+
+  local safety_dir=""
+  if [ "$safety" = yes ]; then
+    echo "Backing up what is on this server now (so this can be undone)..."
+    # KEEP=1000: the usual clean-up (keep the newest 7) must not delete the backup that is about to be restored. The
+    # backup tool gets a lock file of its own, because this command already holds the usual one.
+    KEEP=1000 LOCK_FILE=/var/lock/vidverse-restore-safety.lock /usr/local/sbin/vidverse-backup \
+      || die "could not back up the current state, so nothing was changed. If you accept losing it, add --no-safety-backup."
+    safety_dir=$BACKUP_DIR/$(latest_backup)
+  fi
+
+  local undo=""
+  [ -n "$safety_dir" ] && undo="
+The state from before is saved in $safety_dir. To go back to it:  sudo vidverse restore $safety_dir"
+
+  echo "Stopping the site..."
+  systemctl stop vidverse-worker vidverse-web
+
+  echo "Restoring the database..."
+  # WITH (FORCE) disconnects anything still attached. --single-transaction makes it all or nothing.
+  runuser -u postgres -- psql -X -q -v ON_ERROR_STOP=1 -c 'DROP DATABASE IF EXISTS vidverse WITH (FORCE)' -c 'CREATE DATABASE vidverse OWNER vidverse' \
+    || die "restore: could not recreate the database. The site is stopped.$undo"
+  runuser -u postgres -- pg_restore --no-owner --role=vidverse --single-transaction --exit-on-error -d vidverse < "$dir/database.dump" \
+    || die "restore: the database could not be restored (see above). The site is stopped.$undo"
+
+  echo "Restoring the videos and pictures..."
+  rsync -a --delete "$dir/media/" "$data"/ || die "restore: copying the videos failed. The site is stopped.$undo"
+  chown -R vidverse:vidverse "$data"
+
+  echo "Restoring the secret keys..."
+  for key in SESSION_SECRET ENCRYPTION_KEYS; do
+    copy_env_line "$key" "$dir/vidverse.env" "$ENV_FILE" || die "restore: could not copy $key. The site is stopped.$undo"
+  done
+
+  exec 9>&-   # let go of the lock, so that nothing started below inherits it
+  echo "Starting the site..."
+  systemctl restart vidverse-web
+  local i ok=no
+  for ((i = 0; i < 90; i++)); do
+    if curl -fsS --max-time 3 http://127.0.0.1:3000/api/health > /dev/null 2>&1; then ok=yes; break; fi
+    sleep 1
+  done
+  [ "$ok" = yes ] || die "restore: the data is back, but the website did not start. See:  sudo vidverse logs web$undo"
+  systemctl restart vidverse-worker
+  echo "Restored the backup taken at $(cat "$dir/COMPLETE"). Check it: sign in, open a video, play it.$undo"
+}
+
+case "${1:-}" in
+  status) cmd_status ;;
+  logs) shift; cmd_logs "$@" ;;
+  make-admin) shift; [ $# -ge 1 ] || die "make-admin needs the person's email address"; as_site make-admin "$@" ;;
+  mail-test) shift; [ $# -ge 1 ] || die "mail-test needs an email address to send to"; as_site mail-test "$@" ;;
+  backup) exec /usr/local/sbin/vidverse-backup ;;
+  restore) shift; cmd_restore "$@" ;;
+  gate) shift; cmd_gate "$@" ;;
+  *) usage; exit 1 ;;
+esac

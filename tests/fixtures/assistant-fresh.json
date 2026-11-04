@@ -1,0 +1,396 @@
+{
+  "note": "Written after the search had been tuned on the other two sets, and run once, without changing the search afterwards. It is the best available estimate of accuracy on new questions. The same author wrote the articles and the questions, so real visitors will do worse. After this run, the search was changed (stricter typo correction, questions about words the help never uses are no longer answered, three help articles gained wording), so this set is now a tuning set too. `ok` marks questions where an answer from the named article is correct; \"how do I edit a video\" moved from out of scope to answered when the help gained a section on editing.",
+  "inScope": [
+    {
+      "q": "How do I sign up?",
+      "expect": [
+        "getting-started"
+      ]
+    },
+    {
+      "q": "i forgott my pasword",
+      "expect": [
+        "passwords-and-two-step-verification"
+      ]
+    },
+    {
+      "q": "I never got the verification email",
+      "expect": [
+        "locked-or-suspended-accounts"
+      ]
+    },
+    {
+      "q": "what are recovery codes",
+      "expect": [
+        "passwords-and-two-step-verification"
+      ]
+    },
+    {
+      "q": "how can I upload a video from my phone",
+      "expect": [
+        "uploading-videos"
+      ]
+    },
+    {
+      "q": "which video formats are supported",
+      "expect": [
+        "uploading-videos"
+      ]
+    },
+    {
+      "q": "my video is stuck on processing",
+      "expect": [
+        "uploading-videos"
+      ]
+    },
+    {
+      "q": "how long can a title be",
+      "expect": [
+        "titles-thumbnails-and-descriptions"
+      ]
+    },
+    {
+      "q": "hw to add tags",
+      "expect": [
+        "titles-thumbnails-and-descriptions"
+      ]
+    },
+    {
+      "q": "can I change the thumbnail after publishing",
+      "expect": [
+        "titles-thumbnails-and-descriptions",
+        "uploading-videos"
+      ]
+    },
+    {
+      "q": "what counts as a view",
+      "expect": [
+        "studio-and-analytics"
+      ]
+    },
+    {
+      "q": "why are my views lower than on other sites",
+      "expect": [
+        "studio-and-analytics"
+      ]
+    },
+    {
+      "q": "what is average viewed",
+      "expect": [
+        "studio-and-analytics"
+      ]
+    },
+    {
+      "q": "how do I get paid for my videos",
+      "expect": [
+        "earning-overview",
+        "payouts"
+      ]
+    },
+    {
+      "q": "what's the minimum amount I can withdraw",
+      "expect": [
+        "payouts"
+      ]
+    },
+    {
+      "q": "do I need a PAN card to get paid",
+      "expect": [
+        "payouts"
+      ]
+    },
+    {
+      "q": "how long until a tip reaches me",
+      "expect": [
+        "tips",
+        "payouts"
+      ]
+    },
+    {
+      "q": "can I tip anonymously",
+      "expect": [
+        "tips"
+      ]
+    },
+    {
+      "q": "is there a limit on how much I can tip",
+      "expect": [
+        "tips"
+      ]
+    },
+    {
+      "q": "why do I see ads",
+      "expect": [
+        "ads-and-adsense"
+      ]
+    },
+    {
+      "q": "does the site show personalised ads",
+      "expect": [
+        "ads-and-adsense"
+      ]
+    },
+    {
+      "q": "why dont creators get the ad money",
+      "expect": [
+        "ads-and-adsense",
+        "earning-overview"
+      ]
+    },
+    {
+      "q": "how do I subscribe to a channel",
+      "expect": [
+        "subscriptions-and-notifications"
+      ]
+    },
+    {
+      "q": "what does the bell icon do",
+      "expect": [
+        "subscriptions-and-notifications"
+      ]
+    },
+    {
+      "q": "how to delete a comment",
+      "expect": [
+        "comments"
+      ]
+    },
+    {
+      "q": "is there a limit on comment length",
+      "expect": [
+        "comments"
+      ]
+    },
+    {
+      "q": "how do I reply to someone",
+      "expect": [
+        "comments"
+      ]
+    },
+    {
+      "q": "how do I clear my history",
+      "expect": [
+        "history-and-watch-later"
+      ]
+    },
+    {
+      "q": "where are the videos I liked",
+      "expect": [
+        "history-and-watch-later"
+      ]
+    },
+    {
+      "q": "can I save videos for later",
+      "expect": [
+        "history-and-watch-later"
+      ]
+    },
+    {
+      "q": "how do I change my display name",
+      "expect": [
+        "your-profile"
+      ]
+    },
+    {
+      "q": "how can I add a donation link to my channel",
+      "expect": [
+        "your-profile",
+        "earning-overview"
+      ]
+    },
+    {
+      "q": "someone keeps harassing me in the comments",
+      "expect": [
+        "reporting-content",
+        "comments",
+        "community-rules-in-brief"
+      ]
+    },
+    {
+      "q": "report a video",
+      "expect": [
+        "reporting-content"
+      ]
+    },
+    {
+      "q": "what content is not allowed",
+      "expect": [
+        "community-rules-in-brief"
+      ]
+    },
+    {
+      "q": "my account got suspended",
+      "expect": [
+        "locked-or-suspended-accounts"
+      ]
+    },
+    {
+      "q": "too many failed login attempts",
+      "expect": [
+        "locked-or-suspended-accounts"
+      ]
+    },
+    {
+      "q": "I am 16, can I make an account",
+      "expect": [
+        "age-requirement"
+      ]
+    },
+    {
+      "q": "how do I contact support",
+      "expect": [
+        "contacting-support"
+      ]
+    },
+    {
+      "q": "I want to talk to a real person",
+      "expect": [
+        "contacting-support",
+        "about-the-help-assistant"
+      ]
+    },
+    {
+      "q": "does the help bot keep my questions",
+      "expect": [
+        "about-the-help-assistant"
+      ]
+    },
+    {
+      "q": "why is my video not showing on the home page",
+      "expect": [
+        "how-recommendations-work"
+      ]
+    },
+    {
+      "q": "how do I get more views",
+      "expect": [
+        "how-recommendations-work",
+        "titles-thumbnails-and-descriptions",
+        "studio-and-analytics"
+      ]
+    },
+    {
+      "q": "how to enable two step verification",
+      "expect": [
+        "passwords-and-two-step-verification"
+      ]
+    },
+    {
+      "q": "can I watch without logging in",
+      "expect": [
+        "getting-started"
+      ]
+    },
+    {
+      "q": "how do I speed up the video",
+      "expect": [
+        "watching-videos"
+      ]
+    },
+    {
+      "q": "can I buy views",
+      "expect": [
+        "earning-rules"
+      ]
+    },
+    {
+      "q": "is my password stored safely",
+      "expect": [
+        "privacy-and-your-data",
+        "passwords-and-two-step-verification"
+      ]
+    },
+    {
+      "q": "download all my data",
+      "expect": [
+        "privacy-and-your-data"
+      ]
+    },
+    {
+      "q": "how many videos can I post in a day",
+      "expect": [
+        "uploading-videos"
+      ]
+    },
+    {
+      "q": "can other people see what I watch",
+      "expect": [
+        "privacy-and-your-data",
+        "history-and-watch-later"
+      ]
+    },
+    {
+      "q": "how do I cancel a payout request",
+      "expect": [
+        "payouts"
+      ]
+    },
+    {
+      "q": "I was charged but the creator did not get my tip",
+      "expect": [
+        "tips"
+      ]
+    },
+    {
+      "q": "how do I file a dmca notice",
+      "expect": [
+        "copyright-and-takedowns"
+      ]
+    },
+    {
+      "q": "does the site email me when new videos are posted",
+      "expect": [
+        "subscriptions-and-notifications",
+        "healthy-watching"
+      ]
+    }
+  ],
+  "outOfScope": [
+    {
+      "q": "how do I go live",
+      "ok": [
+        "not-yet-available"
+      ]
+    },
+    {
+      "q": "can I add subtitles to my video",
+      "ok": [
+        "not-yet-available"
+      ]
+    },
+    {
+      "q": "how do I make a playlist",
+      "ok": [
+        "not-yet-available"
+      ]
+    },
+    {
+      "q": "how can I schedule a video for tomorrow",
+      "ok": [
+        "not-yet-available"
+      ]
+    },
+    {
+      "q": "does this have a mobile app",
+      "ok": [
+        "not-yet-available"
+      ]
+    },
+    "what is bitcoin",
+    "write me a poem",
+    "how do I reset my gmail password",
+    {
+      "q": "how do I edit a video",
+      "ok": [
+        "uploading-videos",
+        "not-yet-available"
+      ]
+    },
+    "weather today",
+    "how to hack a wifi password",
+    "how do I make money on instagram",
+    "movie recommendations",
+    "translate this to hindi",
+    "is it safe to invest in crypto"
+  ]
+}
